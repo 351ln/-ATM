@@ -6,7 +6,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: Arial; text-align: center; }
-
     .hidden { display: none; }
 
     .btn {
@@ -44,6 +43,11 @@
 <div id="app" class="hidden">
   <h2 id="username"></h2>
   <button onclick="goHome()">← 回首頁</button>
+
+  <!-- 日期 -->
+  <div>
+    <input type="date" id="date">
+  </div>
 
   <div>
     <input type="text" id="nameInput" placeholder="修改名字">
@@ -105,6 +109,9 @@ function enter(index) {
   document.getElementById("home").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
 
+  // 預設今天
+  document.getElementById("date").valueAsDate = new Date();
+
   renderUser();
 }
 
@@ -124,15 +131,15 @@ function saveName() {
 }
 
 function addData() {
+  const date = document.getElementById("date").value;
   const time = parseFloat(document.getElementById("time").value);
   const task = document.getElementById("task").value;
   const weight = parseFloat(document.getElementById("weight").value);
 
-  if (!time || !task || isNaN(weight)) return alert("填完整");
-
+  if (!date || !time || !task || isNaN(weight)) return alert("填完整");
   if (weight > 2) return alert("工作量上限是2");
 
-  users[currentUser].data.push({time, task, weight});
+  users[currentUser].data.push({date, time, task, weight});
 
   save();
   renderUser();
@@ -142,20 +149,23 @@ let chart;
 
 function renderUser() {
   const user = users[currentUser];
+  const selectedDate = document.getElementById("date").value;
+
   document.getElementById("username").innerText = user.name;
 
-  let table = `
-    <tr><th>時間</th><th>項目</th><th>工作量</th></tr>
-  `;
+  let table = `<tr><th>日期</th><th>時間</th><th>項目</th><th>工作量</th></tr>`;
 
   let totalTime = 0;
   let totalWork = 0;
 
-  user.data.forEach(d => {
+  const filtered = user.data.filter(d => d.date === selectedDate);
+
+  filtered.forEach(d => {
     totalTime += d.time;
     totalWork += d.time * d.weight;
 
     table += `<tr>
+      <td>${d.date}</td>
       <td>${d.time}</td>
       <td>${d.task}</td>
       <td>${d.weight}</td>
@@ -164,12 +174,12 @@ function renderUser() {
 
   document.getElementById("table").innerHTML = table;
   document.getElementById("summary").innerText =
-    `總時間 ${totalTime} 小時｜加權工作量 ${totalWork.toFixed(2)}`;
+    `當日總時間 ${totalTime} 小時｜加權工作量 ${totalWork.toFixed(2)}`;
 
-  drawChart(user);
+  drawChart(filtered);
 }
 
-function drawChart(user) {
+function drawChart(data) {
   const ctx = document.getElementById("chart");
 
   if (chart) chart.destroy();
@@ -177,11 +187,14 @@ function drawChart(user) {
   chart = new Chart(ctx, {
     type: 'pie',
     data: {
-      labels: user.data.map(d=>d.task),
-      datasets: [{ data: user.data.map(d=>d.time) }]
+      labels: data.map(d=>d.task),
+      datasets: [{ data: data.map(d=>d.time) }]
     }
   });
 }
+
+// 日期改變時重新渲染
+document.getElementById("date")?.addEventListener("change", renderUser);
 
 load();
 renderHome();
