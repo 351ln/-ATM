@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>工作量追蹤系統</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial; text-align: center; }
+
+    .hidden { display: none; }
+
+    .btn {
+      width: 120px;
+      height: 120px;
+      margin: 10px;
+      border: none;
+      border-radius: 20px;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .c1 { background: #FF6B6B; }
+    .c2 { background: #4ECDC4; }
+    .c3 { background: #FFD93D; color:black;}
+    .c4 { background: #6C5CE7; }
+    .c5 { background: #00B894; }
+
+    table { margin: auto; border-collapse: collapse; }
+    td, th { border: 1px solid #ccc; padding: 6px; }
+
+    input { margin:5px; padding:5px; }
+  </style>
+</head>
+<body>
+
+<!-- 首頁 -->
+<div id="home">
+  <h2>👥 選擇你的角色</h2>
+  <div id="buttons"></div>
+</div>
+
+<!-- 個人頁 -->
+<div id="app" class="hidden">
+  <h2 id="username"></h2>
+  <button onclick="goHome()">← 回首頁</button>
+
+  <div>
+    <input type="text" id="nameInput" placeholder="修改名字">
+    <button onclick="saveName()">儲存名字</button>
+  </div>
+
+  <div>
+    <input type="number" id="time" placeholder="時間(小時)">
+    <input type="text" id="task" placeholder="項目">
+    <input type="number" id="weight" placeholder="工作量(0~2)" max="2">
+    <button onclick="addData()">新增</button>
+  </div>
+
+  <h3>紀錄</h3>
+  <table id="table"></table>
+
+  <h3 id="summary"></h3>
+
+  <canvas id="chart" width="300"></canvas>
+</div>
+
+<script>
+const colors = ["c1","c2","c3","c4","c5"];
+
+let users = [
+  {name:"人1", data:[]},
+  {name:"人2", data:[]},
+  {name:"人3", data:[]},
+  {name:"人4", data:[]},
+  {name:"人5", data:[]}
+];
+
+let currentUser = null;
+
+function save() {
+  localStorage.setItem("usersData", JSON.stringify(users));
+}
+
+function load() {
+  const d = localStorage.getItem("usersData");
+  if (d) users = JSON.parse(d);
+}
+
+function renderHome() {
+  const container = document.getElementById("buttons");
+  container.innerHTML = "";
+
+  users.forEach((u, i) => {
+    container.innerHTML += `
+      <button class="btn ${colors[i]}" onclick="enter(${i})">
+        ${u.name}
+      </button>
+    `;
+  });
+}
+
+function enter(index) {
+  currentUser = index;
+  document.getElementById("home").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+
+  renderUser();
+}
+
+function goHome() {
+  document.getElementById("home").classList.remove("hidden");
+  document.getElementById("app").classList.add("hidden");
+}
+
+function saveName() {
+  const newName = document.getElementById("nameInput").value;
+  if (!newName) return;
+
+  users[currentUser].name = newName;
+  save();
+  renderHome();
+  renderUser();
+}
+
+function addData() {
+  const time = parseFloat(document.getElementById("time").value);
+  const task = document.getElementById("task").value;
+  const weight = parseFloat(document.getElementById("weight").value);
+
+  if (!time || !task || isNaN(weight)) return alert("填完整");
+
+  if (weight > 2) return alert("工作量上限是2");
+
+  users[currentUser].data.push({time, task, weight});
+
+  save();
+  renderUser();
+}
+
+let chart;
+
+function renderUser() {
+  const user = users[currentUser];
+  document.getElementById("username").innerText = user.name;
+
+  let table = `
+    <tr><th>時間</th><th>項目</th><th>工作量</th></tr>
+  `;
+
+  let totalTime = 0;
+  let totalWork = 0;
+
+  user.data.forEach(d => {
+    totalTime += d.time;
+    totalWork += d.time * d.weight;
+
+    table += `<tr>
+      <td>${d.time}</td>
+      <td>${d.task}</td>
+      <td>${d.weight}</td>
+    </tr>`;
+  });
+
+  document.getElementById("table").innerHTML = table;
+  document.getElementById("summary").innerText =
+    `總時間 ${totalTime} 小時｜加權工作量 ${totalWork.toFixed(2)}`;
+
+  drawChart(user);
+}
+
+function drawChart(user) {
+  const ctx = document.getElementById("chart");
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: user.data.map(d=>d.task),
+      datasets: [{ data: user.data.map(d=>d.time) }]
+    }
+  });
+}
+
+load();
+renderHome();
+</script>
+
+</body>
+</html>
